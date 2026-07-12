@@ -53,13 +53,31 @@ The default backend requires `ollama` and the `qwen3.6:35b-a3b` model.
 
 ## Installation
 
+### Arch package
+
+Clone the repository and build the checksummed package with `makepkg`:
+
+```sh
+git clone https://github.com/Mashaaaaaaaaaaa/safeyay.git
+cd safeyay
+makepkg -si
+```
+
+The included [PKGBUILD](PKGBUILD) verifies every packaged source file with
+SHA-256 and installs the launcher under `/usr/bin` and the scanner under
+`/usr/lib/safeyay`. Review the PKGBUILD before building, as with any AUR-style
+package.
+
+### Per-user installation
+
 From this directory:
 
 ```sh
 ./install.sh
 ```
 
-The default prefix is `~/.local`. Ensure `~/.local/bin` is on `PATH`.
+The install script's default prefix is `~/.local`. Ensure `~/.local/bin` is on
+`PATH`.
 
 For the default backend, pull the model once:
 
@@ -102,7 +120,8 @@ User configuration is read from:
 ```
 
 An annotated template is available at [config.example.toml](config.example.toml)
-and is installed under `~/.local/share/doc/safeyay/` by default.
+and is installed under `/usr/share/doc/safeyay/` by the Arch package or under
+`~/.local/share/doc/safeyay/` by the per-user installer.
 
 Common settings are:
 
