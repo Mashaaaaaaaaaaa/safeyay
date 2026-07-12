@@ -67,6 +67,25 @@ OWNED_OLLAMA_PROCESS: subprocess.Popen | None = None
 OWNED_OLLAMA_PID_FILE: Path | None = None
 
 
+def reviewable_auxiliary(path: Path) -> bool:
+    """Include known build metadata and referenced extensionless text executables."""
+    if path.name in REVIEWABLE_NAMES or path.suffix.lower() in REVIEWABLE_SUFFIXES:
+        return True
+    if path.suffix:
+        return False
+    try:
+        sample = path.read_bytes()[:8192]
+    except OSError:
+        return False
+    if b"\0" in sample:
+        return False
+    try:
+        sample.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
 def stop_owned_ollama() -> None:
     global OWNED_OLLAMA_PROCESS, OWNED_OLLAMA_PID_FILE
     process = OWNED_OLLAMA_PROCESS
@@ -209,8 +228,7 @@ def candidate_files(arguments: list[str]) -> list[Path]:
                     for auxiliary in item.parent.iterdir():
                         if (auxiliary.is_file() and not auxiliary.is_symlink()
                                 and auxiliary.name != "PKGBUILD"
-                                and (auxiliary.name in REVIEWABLE_NAMES
-                                     or auxiliary.suffix.lower() in REVIEWABLE_SUFFIXES)
+                                and reviewable_auxiliary(auxiliary)
                                 and auxiliary.name in pkgbuild):
                             found[str(auxiliary.resolve())] = auxiliary
     return list(found.values())

@@ -3,7 +3,7 @@
 
 pkgname=safeyay
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc='AI-assisted security review wrapper for AUR packages installed by yay'
 arch=('any')
 url='https://github.com/Mashaaaaaaaaaaa/safeyay'
@@ -17,7 +17,7 @@ optdepends=(
 source=('safeyay' 'safeyay_scanner.py' 'config.example.toml' 'LICENSE')
 sha256sums=(
   '53b595a1611d92300e8c55302c1c3a4bdda2a222461547a1111c3d498d45c895'
-  'af1db49faf1522525f2d889523536eafdc29104d5d533f7e338b33a51e39057b'
+  '2a530beed15b3c4480d9bc3c088db665f4e85f4725b631b1edb3400b1afbda4f'
   'd9c3efb9cdc275636ff373f3bfa4dfc6980ea0c7fd96dd32d569af3bc9dec2be'
   '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'
 )

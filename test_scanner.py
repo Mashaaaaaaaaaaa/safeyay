@@ -38,6 +38,15 @@ class ScannerTests(unittest.TestCase):
             names = {path.name for path in scanner.candidate_files([root])}
             self.assertEqual(names, {"PKGBUILD", "limits.conf", "app.desktop", "daemon.service"})
 
+    def test_finds_referenced_extensionless_text_launcher(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "PKGBUILD").write_text("source=(safeyay payload)\npackage() { install safeyay /usr/bin/safeyay; }")
+            (root / "safeyay").write_text("#!/usr/bin/env bash\nexec yay \"$@\"\n")
+            (root / "payload").write_bytes(b"\x7fELF\0binary")
+            names = {path.name for path in scanner.candidate_files([root / "PKGBUILD"])}
+            self.assertEqual(names, {"PKGBUILD", "safeyay"})
+
     def test_groups_split_packages_once_and_separate_pkgbuilds(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
