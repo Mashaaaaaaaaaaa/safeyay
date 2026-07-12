@@ -1,24 +1,44 @@
-pkgname=joplin-desktop-source
-pkgver=2.4.1
+# Maintainer: Mahdi Sarikhani <mahdisarikhani@outlook.com>
+# Contributor: Frederik Schwan <freswa at archlinux dot org>
+# Contributor: Nicola Squartini <tensor5@gmail.com>
+
+pkgname=caprine
+pkgver=2.61.0
 pkgrel=1
-pkgdesc='Open source note-taking application'
-arch=(x86_64)
-url=https://github.com/laurent22/joplin
-license=(MIT)
-depends=(electron)
-makedepends=(npm)
-source=("$pkgname-$pkgver.tar.gz::https://github.com/laurent22/joplin/archive/refs/tags/v$pkgver.tar.gz"
-        package.json package-lock.json build.js)
-sha256sums=('f97bd1cee4f95639c8277703f54a8b25b9333894c984d947f0f728f20015831b'
-            'e3c79fd41b395902c348f663e1250cb1fa7f2a5c33b5f8319eba449bfb31edff'
-            '90647b307ab88ac0c4efb78c25e5d868a895a229b2492087a5b2f12d5d54277a'
-            '33b510ae0273c345d10459dfdceae1aacbe6da251a095dbcb9b9175ef56c229a')
+pkgdesc='Elegant Facebook Messenger desktop app'
+arch=('any')
+url='https://github.com/sindresorhus/caprine'
+license=('MIT')
+_electron=electron39
+depends=('bash' "${_electron}")
+makedepends=('npm')
+source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/v${pkgver}.tar.gz"
+        "${pkgname}.sh")
+sha256sums=('4ac222309a86afde59866dc15f59065fec2f30372d9311acb8fe5a6660beaff8'
+            '70679c9959bae776d667ae1dbd4ffca9298d8784ad4a5959f3b35d2493f2c131')
+
+prepare() {
+    cd "${pkgname}-${pkgver}"
+    export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+    npm install
+
+    sed -i "s/@ELECTRON@/${_electron}/" "${srcdir}/${pkgname}.sh"
+}
 
 build() {
-  npm ci --ignore-scripts
-  npm run build
+    cd "${pkgname}-${pkgver}"
+    npm run build
+    npx electron-builder --linux --dir \
+        -c.electronDist="/usr/lib/${_electron}" \
+        -c.electronVersion="$(cat /usr/lib/${_electron}/version)"
 }
 
 package() {
-  install -Dm644 dist/app.asar "$pkgdir/usr/lib/joplin-desktop/app.asar"
+    cd "${pkgname}-${pkgver}"
+    install -Dm644 dist/linux-unpacked/resources/app.asar -t "${pkgdir}/usr/lib/${pkgname}"
+    cp -r dist/linux-unpacked/resources/app.asar.unpacked "${pkgdir}/usr/lib/${pkgname}"
+    install -Dm755 "${srcdir}/${pkgname}.sh" "${pkgdir}/usr/bin/${pkgname}"
+    install -Dm644 build/icon.png "${pkgdir}/usr/share/pixmaps/${pkgname}.png"
+    install -Dm644 "packages/rpm/${pkgname}.desktop" -t "${pkgdir}/usr/share/applications"
+    install -Dm644 license -t "${pkgdir}/usr/share/licenses/${pkgname}"
 }

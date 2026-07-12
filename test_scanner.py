@@ -80,10 +80,10 @@ class ScannerTests(unittest.TestCase):
         self.assertNotIn("aur-scan", analyze.call_args.args[0])
 
     @patch.object(scanner, "confirm", return_value=False)
-    @patch.object(scanner, "analyze")
+    @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
     @patch.object(scanner.subprocess, "run")
     @patch.object(scanner.shutil, "which", return_value="/usr/bin/aur-scan")
-    def test_ks_aur_scanner_critical_finding_skips_llm_review(self, _which, run, analyze, _confirm):
+    def test_ks_aur_scanner_critical_finding_still_runs_llm_and_prompts(self, _which, run, analyze, confirm):
         run.return_value.returncode = 0
         run.return_value.stdout = json.dumps({
             "package_name": "demo",
@@ -95,7 +95,8 @@ class ScannerTests(unittest.TestCase):
             path.write_text("pkgname=demo")
             with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]):
                 self.assertEqual(scanner.main(), 3)
-        analyze.assert_not_called()
+        analyze.assert_called_once()
+        confirm.assert_called_once()
 
     @patch.object(scanner, "confirm", return_value=False)
     @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})

@@ -16,14 +16,14 @@ prebuilt packages and do not execute an AUR PKGBUILD.
 
 - Reviews every AUR PKGBUILD selected by yay, including AUR dependencies.
 
-- When `ks-aur-scanner` is installed, runs it as an independent first-pass gate
-  before safeyay's LLM review. A critical finding stops the build without
-  starting the LLM review; any other finding still proceeds to the LLM for
-  further analysis. Ks-aur-scanner's output is never included in safeyay's
-  model prompt, so the two reviewers make independent decisions. Once both
-  results are available, safeyay asks for confirmation before continuing,
-  defaulting to reject unless both reviewers reported a completely clean
-  result.
+- When `ks-aur-scanner` is installed, runs it as an independent first-pass
+  scanner before safeyay's LLM review. The LLM review always runs regardless
+  of what ks-aur-scanner reports, including on critical findings, since a
+  static scanner finding can be a false positive and only the LLM reviews
+  full context. Ks-aur-scanner's output is never included in safeyay's model
+  prompt, so the two reviewers make independent decisions. Once both results
+  are available, safeyay asks for confirmation before continuing, defaulting
+  to reject unless both reviewers reported a completely clean result.
 
 - Reviews each package base separately and reports per-package and cumulative
   review time.

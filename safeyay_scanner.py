@@ -702,16 +702,7 @@ def main() -> int:
             findings = scan_report.get("findings", [])
             scanner_clean = not findings
             print_scan_findings(scan_report, label)
-            if any(finding.get("severity") == "critical" for finding in findings):
-                print(
-                    f"[safeyay] ks-aur-scanner reported critical findings for {label}; "
-                    "skipping the LLM review.",
-                    file=sys.stderr,
-                )
-                if not confirm():
-                    return 3
-                continue
-            print(f"[safeyay] ks-aur-scanner found no critical findings for {label}; continuing to the independent LLM review.", file=sys.stderr)
+            print(f"[safeyay] Continuing to the independent LLM review for {label}.", file=sys.stderr)
         if BACKEND == "ollama" and not ollama_ready:
             try:
                 ollama_state = ensure_ollama_running()
