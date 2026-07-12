@@ -642,7 +642,10 @@ def clamav_command() -> list[str] | None:
         except (OSError, subprocess.TimeoutExpired):
             probe = None
         if probe is not None and probe.returncode == 0:
-            return [clamdscan]
+            # clamd commonly runs as its own system user; pass an open file
+            # descriptor instead of a path so it can read files it may not
+            # otherwise have permission to open directly (e.g. under $HOME).
+            return [clamdscan, "--fdpass"]
     clamscan = shutil.which("clamscan")
     if clamscan:
         return [clamscan]

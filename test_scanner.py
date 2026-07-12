@@ -164,7 +164,7 @@ class ScannerTests(unittest.TestCase):
     @patch.object(scanner.shutil, "which", side_effect=lambda name: "/usr/bin/clamdscan" if name == "clamdscan" else None)
     def test_clamav_command_prefers_running_daemon(self, _which, run):
         run.return_value.returncode = 0
-        self.assertEqual(scanner.clamav_command(), ["/usr/bin/clamdscan"])
+        self.assertEqual(scanner.clamav_command(), ["/usr/bin/clamdscan", "--fdpass"])
 
     @patch.object(scanner.shutil, "which")
     def test_clamav_command_falls_back_to_clamscan_when_daemon_unreachable(self, which):
