@@ -17,7 +17,7 @@ optdepends=(
   'clamav: independent malware-signature pre-scan'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('a7ff3256848aafebe5a7d2f243fa50e7319abe1e4fa9be013f6aa9c45793dbaa')
 
 package() {
   cd "$pkgname-$pkgver"
