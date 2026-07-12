@@ -26,9 +26,7 @@ def main() -> int:
     failures = 0
     selected = set(sys.argv[1:])
     clamav = scanner.clamav_command()
-    print(f"ClamAV: {'enabled (' + clamav[0] + ')' if clamav else 'not found, skipping'}")
     ks_aur_scanner = shutil.which("aur-scan")
-    print(f"ks-aur-scanner: {'enabled (' + ks_aur_scanner + ')' if ks_aur_scanner else 'not found, skipping'}")
     fixtures = sorted(
         fixture for fixture in FIXTURES.glob("*/PKGBUILD")
         if not (fixture.parent / ".disabled").exists()
@@ -51,19 +49,16 @@ def main() -> int:
         console = io.StringIO()
         expected = "unlabeled" if (fixture.parent / ".unlabeled").exists() else ("suspicious" if "tampered" in name else "clean")
         record = {"fixture": name, "model": scanner.MODEL, "expected": expected}
-        print(f"\n{name}:")
         if clamav:
             try:
                 with redirect_stdout(console), redirect_stderr(console):
                     infected = scanner.run_clamav_scan(clamav, inputs, name)
                 (run_dir / "clamav-report.json").write_text(json.dumps({"infected": infected}, indent=2) + "\n")
                 record["clamav"] = {"infected_count": len(infected)}
-                print(f"  clamav: {len(infected)} infected file(s)")
             except RuntimeError as exc:
                 (run_dir / "clamav-report.json").write_text(json.dumps({"error": str(exc)}, indent=2) + "\n")
                 record["clamav"] = {"error": str(exc)}
                 print(f"CLAMAV ERROR: {exc}", file=console)
-                print(f"  clamav: ERROR - {exc}")
         if ks_aur_scanner:
             try:
                 with redirect_stdout(console), redirect_stderr(console):
@@ -71,17 +66,14 @@ def main() -> int:
                     scanner.print_scan_findings(scan_report, name)
                 (run_dir / "ks-aur-scanner-report.json").write_text(json.dumps(scan_report, indent=2) + "\n")
                 findings = scan_report.get("findings", [])
-                critical_count = sum(1 for f in findings if f.get("severity") == "critical")
                 record["ks_aur_scanner"] = {
                     "finding_count": len(findings),
-                    "critical_count": critical_count,
+                    "critical_count": sum(1 for f in findings if f.get("severity") == "critical"),
                 }
-                print(f"  ks-aur-scanner: {len(findings)} finding(s), {critical_count} critical")
             except RuntimeError as exc:
                 (run_dir / "ks-aur-scanner-report.json").write_text(json.dumps({"error": str(exc)}, indent=2) + "\n")
                 record["ks_aur_scanner"] = {"error": str(exc)}
                 print(f"KS-AUR-SCANNER ERROR: {exc}", file=console)
-                print(f"  ks-aur-scanner: ERROR - {exc}")
         try:
             with redirect_stdout(console), redirect_stderr(console):
                 print(f"Reviewing {name} with {scanner.MODEL}")

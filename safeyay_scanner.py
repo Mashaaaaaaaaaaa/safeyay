@@ -727,15 +727,7 @@ def main() -> int:
         print("safeyay: yay did not provide a PKGBUILD; refusing to continue", file=sys.stderr)
         return 2
     clamav = clamav_command()
-    if clamav:
-        print(f"[safeyay] ClamAV detected ({clamav[0]}); independent malware-signature pre-scan enabled.", file=sys.stderr)
-    else:
-        print("[safeyay] ClamAV not found on PATH; skipping the independent malware-signature pre-scan.", file=sys.stderr)
     ks_aur_scanner = shutil.which("aur-scan")
-    if ks_aur_scanner:
-        print(f"[safeyay] ks-aur-scanner detected ({ks_aur_scanner}); independent pre-scan enabled.", file=sys.stderr)
-    else:
-        print("[safeyay] ks-aur-scanner (aur-scan) not found on PATH; skipping the independent pre-scan.", file=sys.stderr)
     ollama_ready = False
     running_total = 0.0
     for paths in groups:
