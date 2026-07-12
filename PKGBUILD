@@ -16,7 +16,7 @@ optdepends=(
   'ks-aur-scanner: independent first-pass AUR security scan'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('4422019ae63aa9841fe6df865e7cdb58ac2cdb8db66d661cd16316c2007124aa')
 
 package() {
   cd "$pkgname-$pkgver"

@@ -15,6 +15,6 @@ pkgbase = safeyay
 	optdepends = claude-code: use the Claude Code CLI reviewer backend
 	optdepends = ks-aur-scanner: independent first-pass AUR security scan
 	source = safeyay-0.2.0.tar.gz::https://github.com/Mashaaaaaaaaaaa/safeyay/archive/refs/tags/v0.2.0.tar.gz
-	sha256sums = SKIP
+	sha256sums = 4422019ae63aa9841fe6df865e7cdb58ac2cdb8db66d661cd16316c2007124aa
 
 pkgname = safeyay
