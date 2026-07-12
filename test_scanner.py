@@ -59,6 +59,32 @@ class ScannerTests(unittest.TestCase):
             self.assertEqual([[path.name for path in group] for group in groups], [["PKGBUILD", "one.install"], ["PKGBUILD"]])
 
     @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
+    @patch.object(scanner.subprocess, "run")
+    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aurscan")
+    def test_aurscan_runs_before_independent_llm_review(self, _which, run, analyze):
+        run.return_value.returncode = 0
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]):
+                self.assertEqual(scanner.main(), 0)
+        run.assert_called_once_with(["/usr/bin/aurscan", directory], check=False)
+        self.assertEqual(analyze.call_count, 1)
+        self.assertNotIn("aurscan", analyze.call_args.args[0])
+
+    @patch.object(scanner, "analyze")
+    @patch.object(scanner.subprocess, "run")
+    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aurscan")
+    def test_aurscan_rejection_prevents_llm_review(self, _which, run, analyze):
+        run.return_value.returncode = 2
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]):
+                self.assertEqual(scanner.main(), 2)
+        analyze.assert_not_called()
+
+    @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
     @patch.object(scanner, "ensure_ollama_running", return_value="existing")
     def test_clean_review_succeeds(self, _ollama, _analyze):
         with tempfile.TemporaryDirectory() as directory:

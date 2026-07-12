@@ -3,7 +3,7 @@
 
 pkgname=safeyay
 pkgver=0.1.0
-pkgrel=2
+pkgrel=3
 pkgdesc='AI-assisted security review wrapper for AUR packages installed by yay'
 arch=('any')
 url='https://github.com/Mashaaaaaaaaaaa/safeyay'
@@ -13,11 +13,12 @@ optdepends=(
   'ollama: use locally hosted Ollama models'
   'openai-codex-bin: use the Codex CLI reviewer backend'
   'claude-code: use the Claude Code CLI reviewer backend'
+  'aurscan-manticore-bin-release-git: independent first-pass AUR security scan'
 )
 source=('safeyay' 'safeyay_scanner.py' 'config.example.toml' 'LICENSE')
 sha256sums=(
   '53b595a1611d92300e8c55302c1c3a4bdda2a222461547a1111c3d498d45c895'
-  '2a530beed15b3c4480d9bc3c088db665f4e85f4725b631b1edb3400b1afbda4f'
+  'c6ad80eeff1524eed517f87f56bf09ff8038f54d60a88d1c60d3b50ef8357b47'
   'd9c3efb9cdc275636ff373f3bfa4dfc6980ea0c7fd96dd32d569af3bc9dec2be'
   '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'
 )

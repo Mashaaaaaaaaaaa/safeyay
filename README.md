@@ -16,6 +16,10 @@ prebuilt packages and do not execute an AUR PKGBUILD.
 
 - Reviews every AUR PKGBUILD selected by yay, including AUR dependencies.
 
+- When `aurscan` is installed, runs it as an independent first-pass gate before
+  safeyay's LLM review. Aurscan's output is never included in safeyay's model
+  prompt, so the two reviewers make independent decisions.
+
 - Reviews each package base separately and reports per-package and cumulative
   review time.
 
@@ -50,6 +54,11 @@ prebuilt packages and do not execute an AUR PKGBUILD.
 - At least one configured AI backend
 
 The default backend requires `ollama` and the `qwen3.6:35b-a3b` model.
+
+For defence in depth, optionally install `aurscan` via the recommended
+`aurscan-manticore-bin-release-git` AUR package (or build
+`aurscan-manticore-release-git` from source). Safeyay detects the `aurscan`
+executable automatically; its separate yay hook does not need to be enabled.
 
 ## Installation
 

@@ -10,6 +10,7 @@ import html
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -630,23 +631,50 @@ def confirm() -> bool:
         return False
 
 
+def run_aurscan(executable: str, paths: list[Path], label: str) -> int:
+    """Run aurscan as an independent gate, inheriting the console but no model input."""
+    pkgbuild = next((path for path in paths if path.name == "PKGBUILD"), paths[0])
+    print(f"\n[safeyay] Running independent aurscan pre-scan for {label} ...", file=sys.stderr)
+    try:
+        completed = subprocess.run([executable, str(pkgbuild.parent)], check=False)
+    except OSError as exc:
+        print(f"[safeyay] AURSCAN FAILED: {exc}", file=sys.stderr)
+        return 3
+    if completed.returncode != 0:
+        print(
+            f"[safeyay] aurscan stopped {label} with status {completed.returncode}; "
+            "the LLM review was not started.",
+            file=sys.stderr,
+        )
+    else:
+        print(f"[safeyay] aurscan approved {label}; starting independent LLM review.", file=sys.stderr)
+    return completed.returncode
+
+
 def main() -> int:
     groups = package_groups(sys.argv[1:])
     if not groups:
         print("safeyay: yay did not provide a PKGBUILD; refusing to continue", file=sys.stderr)
         return 2
-    if BACKEND == "ollama":
-        try:
-            ollama_state = ensure_ollama_running()
-        except Exception as exc:
-            print(f"[safeyay] OLLAMA STARTUP FAILED: {exc}", file=sys.stderr)
-            return 2
-        if ollama_state == "started":
-            print("[safeyay] Started a temporary Ollama server for this run.", file=sys.stderr)
+    aurscan = shutil.which("aurscan")
+    ollama_ready = False
     running_total = 0.0
     for paths in groups:
         source = read_sources(paths)
         label = package_name(source)
+        if aurscan:
+            aurscan_status = run_aurscan(aurscan, paths, label)
+            if aurscan_status != 0:
+                return aurscan_status if aurscan_status > 0 else 3
+        if BACKEND == "ollama" and not ollama_ready:
+            try:
+                ollama_state = ensure_ollama_running()
+            except Exception as exc:
+                print(f"[safeyay] OLLAMA STARTUP FAILED: {exc}", file=sys.stderr)
+                return 2
+            ollama_ready = True
+            if ollama_state == "started":
+                print("[safeyay] Started a temporary Ollama server for this run.", file=sys.stderr)
         started_at = time.perf_counter()
         print(f"\n[safeyay] Reviewing {label} with {BACKEND}/{MODEL or 'configured command'} ...", file=sys.stderr)
         try:
