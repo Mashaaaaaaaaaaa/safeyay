@@ -5,6 +5,8 @@
 from __future__ import annotations
 
 import atexit
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 import json
 import html
 import os
@@ -42,6 +44,7 @@ def load_config() -> dict:
         config["model"] = ""
         config["base_url"] = ""
         config["timeout"] = int(config.get("timeout", 600))
+        config["clamav_max_database_age_hours"] = int(config.get("clamav_max_database_age_hours", 48))
         return config
     if backend not in defaults:
         raise RuntimeError(f"unsupported backend: {backend}")
@@ -50,6 +53,7 @@ def load_config() -> dict:
     config["model"] = os.environ.get("SAFEYAY_MODEL", config.get("model", default_model))
     config["base_url"] = os.environ.get("SAFEYAY_BASE_URL", os.environ.get("SAFEYAY_OLLAMA_HOST", config.get("base_url", default_url))).rstrip("/")
     config["timeout"] = int(config.get("timeout", 600))
+    config["clamav_max_database_age_hours"] = int(config.get("clamav_max_database_age_hours", 48))
     return config
 
 
@@ -686,6 +690,48 @@ def run_clamav_scan(command: list[str], paths: list[Path], label: str) -> list[s
     return [line for line in completed.stdout.splitlines() if line.strip()]
 
 
+def clamav_database_age(version_output: str, now: datetime | None = None):
+    """Return the age of ClamAV's signature database from its version output."""
+    match = re.search(r"ClamAV\s+[^/]+/[^/]+/(.+?)\s*$", version_output.strip())
+    if not match:
+        return None
+    try:
+        built_at = parsedate_to_datetime(match.group(1))
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if built_at.tzinfo is None:
+        built_at = built_at.replace(tzinfo=timezone.utc)
+    current = now or datetime.now(timezone.utc)
+    return current.astimezone(timezone.utc) - built_at.astimezone(timezone.utc)
+
+
+def warn_if_clamav_database_stale(command: list[str]) -> None:
+    """Warn about old signatures without blocking or attempting an update."""
+    try:
+        output = subprocess.check_output(
+            [command[0], "--version"], text=True, stderr=subprocess.STDOUT, timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return
+    age = clamav_database_age(output)
+    if age is None:
+        return
+    max_hours = CONFIG["clamav_max_database_age_hours"]
+    age_hours = max(0, int(age.total_seconds() // 3600))
+    if age_hours <= max_hours:
+        return
+    print(
+        f"[safeyay] Warning: ClamAV's signature database is about {age_hours} hours old "
+        f"(recommended maximum: {max_hours} hours).",
+        file=sys.stderr,
+    )
+    print(
+        "[safeyay] Update it with freshclam or your system's ClamAV update service. "
+        "Continuing with the available signatures.",
+        file=sys.stderr,
+    )
+
+
 def run_ks_aur_scanner(executable: str, paths: list[Path], label: str) -> dict:
     """Run ks-aur-scanner as an independent gate and return its structured findings."""
     pkgbuild = next((path for path in paths if path.name == "PKGBUILD"), paths[0])
@@ -757,6 +803,8 @@ def main() -> int:
             "[safeyay] ================================================================",
             file=sys.stderr,
         )
+    if clamav:
+        warn_if_clamav_database_stale(clamav)
     if not clamav and not ks_aur_scanner and not ai_configured:
         print(
             "[safeyay] Warning: No review components are integrated. "

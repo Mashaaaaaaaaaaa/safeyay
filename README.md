@@ -77,6 +77,10 @@ For an additional signature-based layer, optionally install the official
 `clamav` package. Safeyay detects `clamdscan`/`clamscan` automatically. A
 virus database must be present (via `freshclam`) for ClamAV to function;
 safeyay fails closed if `clamav` is installed but has no usable database.
+Safeyay also checks the database build timestamp without requesting elevated
+privileges. If it is older than 48 hours, safeyay recommends an update and then
+continues normally. Set `clamav_max_database_age_hours` in the configuration to
+choose a different threshold.
 
 ## Installation
 

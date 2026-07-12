@@ -2,6 +2,7 @@
 import tempfile
 import unittest
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 import unittest.mock
 from unittest.mock import patch
@@ -182,6 +183,23 @@ class ScannerTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 scanner.run_clamav_scan(["/usr/bin/clamscan"], [path], "demo")
 
+    def test_parses_clamav_database_age(self):
+        now = datetime(2026, 7, 12, 12, 0, tzinfo=timezone.utc)
+        age = scanner.clamav_database_age(
+            "ClamAV 1.5.3/28058/Thu Jul  9 12:00:00 2026", now,
+        )
+        self.assertEqual(age.total_seconds(), 72 * 3600)
+
+    @patch.object(scanner.subprocess, "check_output")
+    def test_stale_clamav_database_warns_but_does_not_fail(self, check_output):
+        check_output.return_value = "ClamAV 1.5.3/28058/Thu Jan  1 00:00:00 2026\n"
+        with patch.dict(scanner.CONFIG, {"clamav_max_database_age_hours": 48}, clear=False), \
+                patch("sys.stderr") as stderr:
+            scanner.warn_if_clamav_database_stale(["/usr/bin/clamscan"])
+        output = "".join(call.args[0] for call in stderr.write.call_args_list)
+        self.assertIn("signature database is about", output)
+        self.assertIn("Continuing with the available signatures", output)
+
     @patch.object(scanner, "analyze")
     @patch.object(scanner, "clamav_command", return_value=["/usr/bin/clamscan"])
     @patch.object(scanner.subprocess, "run")
@@ -196,7 +214,8 @@ class ScannerTests(unittest.TestCase):
             with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]):
                 self.assertEqual(scanner.main(), 3)
         analyze.assert_not_called()
-        run.assert_called_once()
+        scan_calls = [call for call in run.call_args_list if "--infected" in call.args[0]]
+        self.assertEqual(len(scan_calls), 1)
 
     @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
     @patch.object(scanner, "clamav_command", return_value=["/usr/bin/clamscan"])

@@ -8,6 +8,7 @@ backend = "ollama"
 model = "qwen3.6:35b-a3b"
 base_url = "http://127.0.0.1:11434"
 timeout = 600
+clamav_max_database_age_hours = 48
 temperature = 0.1
 context_length = 16384
 max_tokens = 2048
