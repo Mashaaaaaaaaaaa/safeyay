@@ -54,7 +54,7 @@ def main() -> int:
                 with redirect_stdout(console), redirect_stderr(console):
                     infected = scanner.run_clamav_scan(clamav, inputs, name)
                 (run_dir / "clamav-report.json").write_text(json.dumps({"infected": infected}, indent=2) + "\n")
-                record["clamav"] = {"infected_count": len(infected)}
+                record["clamav"] = {"infected_count": len(infected), "infected": infected}
             except RuntimeError as exc:
                 (run_dir / "clamav-report.json").write_text(json.dumps({"error": str(exc)}, indent=2) + "\n")
                 record["clamav"] = {"error": str(exc)}
@@ -69,6 +69,7 @@ def main() -> int:
                 record["ks_aur_scanner"] = {
                     "finding_count": len(findings),
                     "critical_count": sum(1 for f in findings if f.get("severity") == "critical"),
+                    "findings": findings,
                 }
             except RuntimeError as exc:
                 (run_dir / "ks-aur-scanner-report.json").write_text(json.dumps({"error": str(exc)}, indent=2) + "\n")
