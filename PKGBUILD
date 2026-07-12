@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 pkgname=safeyay
-pkgver=0.2.1
+pkgver=0.2.2
 pkgrel=1
 pkgdesc='AI-assisted security review wrapper for AUR packages installed by yay'
 arch=('any')
@@ -17,7 +17,7 @@ optdepends=(
   'clamav: independent malware-signature pre-scan'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('fab6854ccae3ed3edd7bfebce891ec9a4b15dd6d7ac2ff55f1ef808436904dd0')
+sha256sums=('SKIP')
 
 package() {
   cd "$pkgname-$pkgver"

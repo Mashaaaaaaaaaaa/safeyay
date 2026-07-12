@@ -136,6 +136,59 @@ Continue with this suspicious package? [y/N]
 
 The default is to reject it.
 
+### Example
+
+A full run with ClamAV and ks-aur-scanner installed, reviewing the real
+`brave-bin` package. Its genuine `chrome-sandbox` SUID bit trips a
+ks-aur-scanner critical finding, so the result is not completely clean and
+safeyay prompts for a decision even though the LLM review found nothing
+suspicious:
+
+```text
+% safeyay -Sy brave-bin
+[sudo] password for mash:
+:: Synchronizing package databases...
+ core is up to date
+ extra is up to date
+ multilib is up to date
+AUR Explicit (1): brave-bin-1:1.92.139-1
+:: PKGBUILD up to date, skipping download: brave-bin
+  1 brave-bin                                (Installed) (Build Files Exist)
+==> Packages to cleanBuild?
+==> [N]one [A]ll [Ab]ort [I]nstalled [No]tInstalled or (1 2 3, 1-3, ^4)
+==>
+  1 brave-bin                                (Installed) (Build Files Exist)
+==> Diffs to show?
+==> [N]one [A]ll [Ab]ort [I]nstalled [No]tInstalled or (1 2 3, 1-3, ^4)
+==>
+  1 brave-bin                                (Installed) (Build Files Exist)
+==> PKGBUILDs to edit?
+==> [N]one [A]ll [Ab]ort [I]nstalled [No]tInstalled or (1 2 3, 1-3, ^4)
+==> All
+
+[safeyay] Running independent ClamAV scan for brave-bin ...
+[safeyay] ClamAV found no known malware signatures for brave-bin.
+
+[safeyay] Running independent ks-aur-scanner pre-scan for brave-bin ...
+[safeyay] ks-aur-scanner findings for brave-bin: 1 critical, 2 low
+  - [CRITICAL] PRIV-002 SUID bit in package()
+    Location: /home/mash/.cache/yay/brave-bin/PKGBUILD:47
+    Recommendation: Avoid setting SUID bits; use capabilities or polkit instead
+  - [LOW] META-001 Provides impersonation
+    Location: /home/mash/.cache/yay/brave-bin/PKGBUILD:28
+    Recommendation: Verify this package is a legitimate alternative
+  - [LOW] META-004 epoch set (forces an upgrade over the repo version)
+    Location: /home/mash/.cache/yay/brave-bin/PKGBUILD
+    Recommendation: Confirm the epoch bump is a real upstream versioning reset, not a way to supersede the official package.
+[safeyay] Continuing to the independent LLM review for brave-bin.
+[safeyay] Started a temporary Ollama server for this run.
+
+[safeyay] Reviewing brave-bin with ollama/qwen3.6:35b-a3b ...
+[safeyay] Review time for brave-bin: 31.84s (running total: 31.84s)
+[safeyay] No suspicious signs reported: The PKGBUILD and auxiliary files are consistent with the official Brave Browser binary distribution package. All sources originate from the verified upstream GitHub organization (brave/brave-browser). No obfuscated code, unexpected network access during build, or suspicious persistence mechanisms were found.
+Continue with this suspicious package? [y/N]
+```
+
 ## Configuration
 
 User configuration is read from:
