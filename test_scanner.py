@@ -60,7 +60,7 @@ class ScannerTests(unittest.TestCase):
 
     @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
     @patch.object(scanner.subprocess, "run")
-    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aur-scan")
+    @patch.object(scanner.shutil, "which", side_effect=lambda name: "/usr/bin/aur-scan" if name == "aur-scan" else None)
     def test_ks_aur_scanner_runs_before_independent_llm_review(self, _which, run, analyze):
         run.return_value.returncode = 0
         run.return_value.stdout = json.dumps({"package_name": "demo", "findings": []})
@@ -82,7 +82,7 @@ class ScannerTests(unittest.TestCase):
     @patch.object(scanner, "confirm", return_value=False)
     @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
     @patch.object(scanner.subprocess, "run")
-    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aur-scan")
+    @patch.object(scanner.shutil, "which", side_effect=lambda name: "/usr/bin/aur-scan" if name == "aur-scan" else None)
     def test_ks_aur_scanner_critical_finding_still_runs_llm_and_prompts(self, _which, run, analyze, confirm):
         run.return_value.returncode = 0
         run.return_value.stdout = json.dumps({
@@ -101,7 +101,7 @@ class ScannerTests(unittest.TestCase):
     @patch.object(scanner, "confirm", return_value=False)
     @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
     @patch.object(scanner.subprocess, "run")
-    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aur-scan")
+    @patch.object(scanner.shutil, "which", side_effect=lambda name: "/usr/bin/aur-scan" if name == "aur-scan" else None)
     def test_ks_aur_scanner_non_critical_finding_still_runs_llm_and_prompts(self, _which, run, analyze, confirm):
         run.return_value.returncode = 0
         run.return_value.stdout = json.dumps({
@@ -119,7 +119,7 @@ class ScannerTests(unittest.TestCase):
 
     @patch.object(scanner, "analyze")
     @patch.object(scanner.subprocess, "run")
-    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aur-scan")
+    @patch.object(scanner.shutil, "which", side_effect=lambda name: "/usr/bin/aur-scan" if name == "aur-scan" else None)
     def test_ks_aur_scanner_failure_prevents_llm_review(self, _which, run, analyze):
         run.return_value.returncode = 2
         run.return_value.stdout = ""
@@ -131,29 +131,128 @@ class ScannerTests(unittest.TestCase):
                 self.assertEqual(scanner.main(), 2)
         analyze.assert_not_called()
 
+    @patch.object(scanner.subprocess, "run")
+    @patch.object(scanner.shutil, "which", side_effect=lambda name: "/usr/bin/clamdscan" if name == "clamdscan" else None)
+    def test_clamav_command_prefers_running_daemon(self, _which, run):
+        run.return_value.returncode = 0
+        self.assertEqual(scanner.clamav_command(), ["/usr/bin/clamdscan"])
+
+    @patch.object(scanner.shutil, "which")
+    def test_clamav_command_falls_back_to_clamscan_when_daemon_unreachable(self, which):
+        which.side_effect = lambda name: {"clamdscan": "/usr/bin/clamdscan", "clamscan": "/usr/bin/clamscan"}.get(name)
+        with patch.object(scanner.subprocess, "run") as run:
+            run.return_value.returncode = 2
+            self.assertEqual(scanner.clamav_command(), ["/usr/bin/clamscan"])
+
+    @patch.object(scanner.shutil, "which", return_value=None)
+    def test_clamav_command_returns_none_when_absent(self, _which):
+        self.assertIsNone(scanner.clamav_command())
+
+    @patch.object(scanner.subprocess, "run")
+    def test_run_clamav_scan_returns_infected_lines(self, run):
+        run.return_value.returncode = 1
+        run.return_value.stdout = "/tmp/pkg/evil.sh: Eicar-Signature FOUND\n"
+        run.return_value.stderr = ""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            result = scanner.run_clamav_scan(["/usr/bin/clamscan"], [path], "demo")
+        self.assertEqual(result, ["/tmp/pkg/evil.sh: Eicar-Signature FOUND"])
+
+    @patch.object(scanner.subprocess, "run")
+    def test_run_clamav_scan_returns_empty_when_clean(self, run):
+        run.return_value.returncode = 0
+        run.return_value.stdout = ""
+        run.return_value.stderr = ""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            result = scanner.run_clamav_scan(["/usr/bin/clamscan"], [path], "demo")
+        self.assertEqual(result, [])
+
+    @patch.object(scanner.subprocess, "run")
+    def test_run_clamav_scan_raises_on_error_exit_code(self, run):
+        run.return_value.returncode = 2
+        run.return_value.stdout = ""
+        run.return_value.stderr = "LibClamAV Error: no database"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            with self.assertRaises(RuntimeError):
+                scanner.run_clamav_scan(["/usr/bin/clamscan"], [path], "demo")
+
+    @patch.object(scanner, "analyze")
+    @patch.object(scanner, "clamav_command", return_value=["/usr/bin/clamscan"])
+    @patch.object(scanner.subprocess, "run")
+    @patch.object(scanner.shutil, "which", return_value=None)
+    def test_clamav_infection_hard_stops_before_ks_aur_scanner_and_llm(self, _which, run, _clamav_command, analyze):
+        run.return_value.returncode = 1
+        run.return_value.stdout = "PKGBUILD: Eicar-Signature FOUND\n"
+        run.return_value.stderr = ""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]):
+                self.assertEqual(scanner.main(), 3)
+        analyze.assert_not_called()
+        run.assert_called_once()
+
+    @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
+    @patch.object(scanner, "clamav_command", return_value=["/usr/bin/clamscan"])
+    @patch.object(scanner.subprocess, "run")
+    @patch.object(scanner.shutil, "which", return_value=None)
+    def test_clamav_clean_continues_to_llm(self, _which, run, _clamav_command, analyze):
+        run.return_value.returncode = 0
+        run.return_value.stdout = ""
+        run.return_value.stderr = ""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]):
+                self.assertEqual(scanner.main(), 0)
+        analyze.assert_called_once()
+
+    @patch.object(scanner, "analyze")
+    @patch.object(scanner, "clamav_command", return_value=["/usr/bin/clamscan"])
+    @patch.object(scanner.subprocess, "run")
+    @patch.object(scanner.shutil, "which", return_value=None)
+    def test_clamav_failure_fails_closed(self, _which, run, _clamav_command, analyze):
+        run.return_value.returncode = 2
+        run.return_value.stdout = ""
+        run.return_value.stderr = "no database"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]):
+                self.assertEqual(scanner.main(), 2)
+        analyze.assert_not_called()
+
+    @patch.object(scanner.shutil, "which", return_value=None)
     @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
     @patch.object(scanner, "ensure_ollama_running", return_value="existing")
-    def test_clean_review_succeeds(self, _ollama, _analyze):
+    def test_clean_review_succeeds(self, _ollama, _analyze, _which):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "PKGBUILD"
             path.write_text("pkgname=demo")
             with patch.object(scanner.sys, "argv", ["scanner", str(path)]):
                 self.assertEqual(scanner.main(), 0)
 
+    @patch.object(scanner.shutil, "which", return_value=None)
     @patch.object(scanner, "confirm", return_value=False)
     @patch.object(scanner, "analyze", return_value={"suspicious": True, "summary": "bad", "findings": []})
     @patch.object(scanner, "ensure_ollama_running", return_value="existing")
-    def test_suspicious_review_is_rejected_by_default(self, _ollama, _analyze, _confirm):
+    def test_suspicious_review_is_rejected_by_default(self, _ollama, _analyze, _confirm, _which):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "PKGBUILD"
             path.write_text("pkgname=demo")
             with patch.object(scanner.sys, "argv", ["scanner", str(path)]):
                 self.assertEqual(scanner.main(), 3)
 
+    @patch.object(scanner.shutil, "which", return_value=None)
     @patch.object(scanner.time, "perf_counter", side_effect=[10.0, 11.25, 20.0, 22.5])
     @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
     @patch.object(scanner, "ensure_ollama_running", return_value="existing")
-    def test_reports_per_package_and_running_review_time(self, _ollama, _analyze, _clock):
+    def test_reports_per_package_and_running_review_time(self, _ollama, _analyze, _clock, _which):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             paths = []

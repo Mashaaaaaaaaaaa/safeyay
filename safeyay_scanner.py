@@ -631,6 +631,44 @@ def confirm() -> bool:
         return False
 
 
+def clamav_command() -> list[str] | None:
+    """Pick the fastest available ClamAV invocation without managing a daemon's lifecycle."""
+    clamdscan = shutil.which("clamdscan")
+    if clamdscan:
+        try:
+            probe = subprocess.run(
+                [clamdscan, "--ping", "1"], check=False, capture_output=True, text=True, timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            probe = None
+        if probe is not None and probe.returncode == 0:
+            return [clamdscan]
+    clamscan = shutil.which("clamscan")
+    if clamscan:
+        return [clamscan]
+    return None
+
+
+def run_clamav_scan(command: list[str], paths: list[Path], label: str) -> list[str]:
+    """Run ClamAV as an independent malware-signature gate; return infected-file report lines."""
+    pkgbuild = next((path for path in paths if path.name == "PKGBUILD"), paths[0])
+    print(f"\n[safeyay] Running independent ClamAV scan for {label} ...", file=sys.stderr)
+    try:
+        completed = subprocess.run(
+            [*command, "--no-summary", "--infected", str(pkgbuild.parent)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        raise RuntimeError(f"ClamAV could not be started: {exc}") from exc
+    if completed.returncode not in (0, 1):
+        raise RuntimeError(
+            f"ClamAV exited with status {completed.returncode}: {(completed.stderr or completed.stdout).strip()}"
+        )
+    return [line for line in completed.stdout.splitlines() if line.strip()]
+
+
 def run_ks_aur_scanner(executable: str, paths: list[Path], label: str) -> dict:
     """Run ks-aur-scanner as an independent gate and return its structured findings."""
     pkgbuild = next((path for path in paths if path.name == "PKGBUILD"), paths[0])
@@ -685,6 +723,7 @@ def main() -> int:
     if not groups:
         print("safeyay: yay did not provide a PKGBUILD; refusing to continue", file=sys.stderr)
         return 2
+    clamav = clamav_command()
     ks_aur_scanner = shutil.which("aur-scan")
     ollama_ready = False
     running_total = 0.0
@@ -692,6 +731,23 @@ def main() -> int:
         source = read_sources(paths)
         label = package_name(source)
         scanner_clean = True
+        if clamav:
+            try:
+                infected = run_clamav_scan(clamav, paths, label)
+            except RuntimeError as exc:
+                print(f"[safeyay] CLAMAV FAILED: {exc}", file=sys.stderr)
+                print("[safeyay] Refusing to continue (fail-closed).", file=sys.stderr)
+                return 2
+            if infected:
+                print(f"[safeyay] ClamAV detected known malware signatures for {label}:", file=sys.stderr)
+                for line in infected:
+                    print(f"  - {line}", file=sys.stderr)
+                print(
+                    "[safeyay] Refusing to continue; ks-aur-scanner and the LLM review were not run.",
+                    file=sys.stderr,
+                )
+                return 3
+            print(f"[safeyay] ClamAV found no known malware signatures for {label}.", file=sys.stderr)
         if ks_aur_scanner:
             try:
                 scan_report = run_ks_aur_scanner(ks_aur_scanner, paths, label)

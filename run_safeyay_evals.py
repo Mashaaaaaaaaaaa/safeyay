@@ -25,6 +25,7 @@ def main() -> int:
     runs = []
     failures = 0
     selected = set(sys.argv[1:])
+    clamav = scanner.clamav_command()
     ks_aur_scanner = shutil.which("aur-scan")
     fixtures = sorted(
         fixture for fixture in FIXTURES.glob("*/PKGBUILD")
@@ -48,6 +49,16 @@ def main() -> int:
         console = io.StringIO()
         expected = "unlabeled" if (fixture.parent / ".unlabeled").exists() else ("suspicious" if "tampered" in name else "clean")
         record = {"fixture": name, "model": scanner.MODEL, "expected": expected}
+        if clamav:
+            try:
+                with redirect_stdout(console), redirect_stderr(console):
+                    infected = scanner.run_clamav_scan(clamav, inputs, name)
+                (run_dir / "clamav-report.json").write_text(json.dumps({"infected": infected}, indent=2) + "\n")
+                record["clamav"] = {"infected_count": len(infected)}
+            except RuntimeError as exc:
+                (run_dir / "clamav-report.json").write_text(json.dumps({"error": str(exc)}, indent=2) + "\n")
+                record["clamav"] = {"error": str(exc)}
+                print(f"CLAMAV ERROR: {exc}", file=console)
         if ks_aur_scanner:
             try:
                 with redirect_stdout(console), redirect_stderr(console):
@@ -83,6 +94,7 @@ def main() -> int:
         "backend": scanner.BACKEND,
         "model": scanner.MODEL,
         "base_url": scanner.CONFIG.get("base_url", ""),
+        "clamav_used": bool(clamav),
         "ks_aur_scanner_used": bool(ks_aur_scanner),
         "fixture_labels_exposed_to_model": False,
         "runs": runs,

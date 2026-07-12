@@ -16,6 +16,13 @@ prebuilt packages and do not execute an AUR PKGBUILD.
 
 - Reviews every AUR PKGBUILD selected by yay, including AUR dependencies.
 
+- When `clamav` is installed, scans the package's local files for known
+  malware signatures before any other review step. A detected signature is
+  treated as high-confidence: safeyay refuses to continue immediately,
+  without running ks-aur-scanner or the LLM review. Prefers an already-running
+  `clamd` daemon (via `clamdscan`) for speed and falls back to a one-shot
+  `clamscan` otherwise; safeyay never starts or stops `clamd` itself.
+
 - When `ks-aur-scanner` is installed, runs it as an independent first-pass
   scanner before safeyay's LLM review. The LLM review always runs regardless
   of what ks-aur-scanner reports, including on critical findings, since a
@@ -63,6 +70,11 @@ The default backend requires `ollama` and the `qwen3.6:35b-a3b` model.
 For defence in depth, optionally install the `ks-aur-scanner` AUR package.
 Safeyay detects its `aur-scan` executable automatically; its separate yay
 hook or shell integration does not need to be enabled.
+
+For an additional signature-based layer, optionally install the official
+`clamav` package. Safeyay detects `clamdscan`/`clamscan` automatically. A
+virus database must be present (via `freshclam`) for ClamAV to function;
+safeyay fails closed if `clamav` is installed but has no usable database.
 
 ## Installation
 
