@@ -26,7 +26,9 @@ def load_config() -> dict:
     if path.is_file():
         with path.open("rb") as handle:
             config = tomllib.load(handle)
-    backend = os.environ.get("SAFEYAY_BACKEND", config.get("backend", "ollama"))
+    # Keep the AI reviewer opt-in, like the two auto-detected scanner
+    # integrations, instead of making an implicit Ollama backend mandatory.
+    backend = os.environ.get("SAFEYAY_BACKEND", config.get("backend"))
     defaults = {
         "ollama": ("qwen3.6:35b-a3b", "http://127.0.0.1:11434"),
         "openai": ("gpt-5.6-terra", "https://api.openai.com/v1"),
@@ -35,6 +37,12 @@ def load_config() -> dict:
         "gemini": ("gemini-2.5-pro", "https://generativelanguage.googleapis.com/v1beta"),
         "codex": ("gpt-5.6-terra", ""), "claude": ("sonnet", ""), "command": ("", ""),
     }
+    if backend is None:
+        config["backend"] = None
+        config["model"] = ""
+        config["base_url"] = ""
+        config["timeout"] = int(config.get("timeout", 600))
+        return config
     if backend not in defaults:
         raise RuntimeError(f"unsupported backend: {backend}")
     default_model, default_url = defaults[backend]
@@ -46,7 +54,7 @@ def load_config() -> dict:
 
 
 CONFIG = load_config()
-BACKEND = CONFIG["backend"]
+BACKEND: str | None = CONFIG["backend"]
 MODEL = CONFIG["model"]
 OLLAMA_HOST = CONFIG["base_url"] if BACKEND == "ollama" else "http://127.0.0.1:11434"
 if "://" not in OLLAMA_HOST:
@@ -734,6 +742,19 @@ def main() -> int:
         return 2
     clamav = clamav_command()
     ks_aur_scanner = shutil.which("aur-scan")
+    ai_configured = BACKEND is not None
+    if not clamav:
+        print("[safeyay] ClamAV is not integrated; signature scanning will be skipped.", file=sys.stderr)
+    if not ks_aur_scanner:
+        print("[safeyay] ks-aur-scanner is not integrated; static scanning will be skipped.", file=sys.stderr)
+    if not ai_configured:
+        print("[safeyay] AI reviewer is not integrated; AI review will be skipped.", file=sys.stderr)
+    if not clamav and not ks_aur_scanner and not ai_configured:
+        print(
+            "[safeyay] WARNING: No review components are integrated. "
+            "Safeyay is currently offering no security benefit.",
+            file=sys.stderr,
+        )
     ollama_ready = False
     running_total = 0.0
     for paths in groups:
@@ -752,7 +773,7 @@ def main() -> int:
                 for line in infected:
                     print(f"  - {line}", file=sys.stderr)
                 print(
-                    "[safeyay] Refusing to continue; ks-aur-scanner and the LLM review were not run.",
+                    "[safeyay] Refusing to continue; remaining review components were not run.",
                     file=sys.stderr,
                 )
                 return 3
@@ -767,7 +788,12 @@ def main() -> int:
             findings = scan_report.get("findings", [])
             scanner_clean = not findings
             print_scan_findings(scan_report, label)
-            print(f"[safeyay] Continuing to the independent LLM review for {label}.", file=sys.stderr)
+            if ai_configured:
+                print(f"[safeyay] Continuing to the independent AI review for {label}.", file=sys.stderr)
+        if not ai_configured:
+            if not scanner_clean and not confirm():
+                return 3
+            continue
         if BACKEND == "ollama" and not ollama_ready:
             try:
                 ollama_state = ensure_ollama_running()

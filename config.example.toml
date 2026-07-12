@@ -2,6 +2,8 @@
 # values below with one of the commented examples. Do not define a key twice.
 # Secrets are always read from environment variables.
 
+# Adding a backend opts into the AI-review component. If backend is omitted,
+# safeyay still uses any detected ClamAV and ks-aur-scanner integrations.
 backend = "ollama"
 model = "qwen3.6:35b-a3b"
 base_url = "http://127.0.0.1:11434"

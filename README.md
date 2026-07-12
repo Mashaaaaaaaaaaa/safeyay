@@ -1,8 +1,8 @@
 # safeyay
 
-`safeyay` is a fail-closed security-review wrapper for `yay`. Before yay builds
-an AUR package, safeyay sends its PKGBUILD and relevant auxiliary files to a
-configurable AI reviewer and reports suspicious behavior for the user to inspect.
+`safeyay` is a security-review wrapper for `yay`. Before yay builds an AUR
+package, safeyay runs whichever of its three optional review components are
+integrated: ClamAV, ks-aur-scanner, and a configurable AI reviewer.
 
 Official Arch repository packages are skipped. They are installed as signed,
 prebuilt packages and do not execute an AUR PKGBUILD.
@@ -23,14 +23,11 @@ prebuilt packages and do not execute an AUR PKGBUILD.
   `clamd` daemon (via `clamdscan`) for speed and falls back to a one-shot
   `clamscan` otherwise; safeyay never starts or stops `clamd` itself.
 
-- When `ks-aur-scanner` is installed, runs it as an independent first-pass
-  scanner before safeyay's LLM review. The LLM review always runs regardless
-  of what ks-aur-scanner reports, including on critical findings, since a
-  static scanner finding can be a false positive and only the LLM reviews
-  full context. Ks-aur-scanner's output is never included in safeyay's model
-  prompt, so the two reviewers make independent decisions. Once both results
-  are available, safeyay asks for confirmation before continuing, defaulting
-  to reject unless both reviewers reported a completely clean result.
+- When `ks-aur-scanner` is installed, runs it as an independent static scanner.
+  If AI review is also configured, it runs regardless of what ks-aur-scanner
+  reports, including on critical findings. Ks-aur-scanner's output is never
+  included in the model prompt, so the two reviewers make independent decisions.
+  Safeyay asks for confirmation before continuing when either reports findings.
 
 - Reviews each package base separately and reports per-package and cumulative
   review time.
@@ -55,6 +52,10 @@ prebuilt packages and do not execute an AUR PKGBUILD.
 
 - Supports local models, cloud APIs, authenticated agent CLIs, and custom commands.
 
+- Explicitly reports every review component that is not integrated. If all
+  three are unavailable, warns that safeyay is currently offering no security
+  benefit.
+
 ## Requirements
 
 - Arch Linux or an Arch-based system
@@ -63,9 +64,10 @@ prebuilt packages and do not execute an AUR PKGBUILD.
 
 - Python 3.11 or newer
 
-- At least one configured AI backend
-
-The default backend requires `ollama` and the `qwen3.6:35b-a3b` model.
+All three review components are optional. AI review is enabled only when a
+backend is explicitly selected in the configuration file or with
+`SAFEYAY_BACKEND`. The Ollama example requires `ollama` and the
+`qwen3.6:35b-a3b` model.
 
 For defence in depth, optionally install the `ks-aur-scanner` AUR package.
 Safeyay detects its `aur-scan` executable automatically; its separate yay
@@ -104,7 +106,8 @@ From this directory:
 The install script's default prefix is `~/.local`. Ensure `~/.local/bin` is on
 `PATH`.
 
-For the default backend, pull the model once:
+To use the example Ollama backend, copy `config.example.toml` to the
+configuration path below and pull the model once:
 
 ```sh
 ollama pull qwen3.6:35b-a3b
@@ -113,7 +116,8 @@ ollama pull qwen3.6:35b-a3b
 Ollama does not need to be running before safeyay starts. For a loopback Ollama
 endpoint, the first review starts `ollama serve` when necessary. Safeyay stops
 only the server it started, immediately after the complete review batch. An
-already-running Ollama server is reused and left running.
+already-running Ollama server is reused and left running. With no configured AI
+backend, AI review is skipped.
 
 ## Usage
 
@@ -204,6 +208,7 @@ and is installed under `/usr/share/doc/safeyay/` by the Arch package or under
 Common settings are:
 
 ```toml
+# The presence of backend enables AI review.
 backend = "ollama"
 model = "qwen3.6:35b-a3b"
 base_url = "http://127.0.0.1:11434"
@@ -434,7 +439,9 @@ Each run is stored under `eval/results/<timestamp>/` with:
 
 - Parsed review JSON
 
-- Console output and a result manifest
+- Console output and a result manifest. The manifest summarizes
+  ks-aur-scanner findings by severity count; the separate per-fixture
+  `ks-aur-scanner-report.json` retains its detailed assessment.
 
 Fixture directory labels such as `clean` and `tampered` are not exposed to the
 model.

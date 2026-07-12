@@ -17,6 +17,15 @@ import safeyay_scanner as scanner
 ROOT = Path(__file__).resolve().parent
 FIXTURES = ROOT / "eval" / "fixtures"
 RESULTS = ROOT / "eval" / "results"
+SEVERITIES = ("critical", "high", "medium", "low", "info")
+
+
+def finding_counts_by_severity(findings: list[dict]) -> dict[str, int]:
+    """Summarize scanner findings without copying assessments into the manifest."""
+    return {
+        severity: sum(finding.get("severity") == severity for finding in findings)
+        for severity in SEVERITIES
+    }
 
 
 def main() -> int:
@@ -67,9 +76,7 @@ def main() -> int:
                 (run_dir / "ks-aur-scanner-report.json").write_text(json.dumps(scan_report, indent=2) + "\n")
                 findings = scan_report.get("findings", [])
                 record["ks_aur_scanner"] = {
-                    "finding_count": len(findings),
-                    "critical_count": sum(1 for f in findings if f.get("severity") == "critical"),
-                    "findings": findings,
+                    "findings_by_severity": finding_counts_by_severity(findings),
                 }
             except RuntimeError as exc:
                 (run_dir / "ks-aur-scanner-report.json").write_text(json.dumps({"error": str(exc)}, indent=2) + "\n")

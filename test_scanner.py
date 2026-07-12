@@ -235,7 +235,8 @@ class ScannerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "PKGBUILD"
             path.write_text("pkgname=demo")
-            with patch.object(scanner.sys, "argv", ["scanner", str(path)]):
+            with patch.object(scanner, "BACKEND", "ollama"), \
+                    patch.object(scanner.sys, "argv", ["scanner", str(path)]):
                 self.assertEqual(scanner.main(), 0)
 
     @patch.object(scanner.shutil, "which", return_value=None)
@@ -246,7 +247,8 @@ class ScannerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "PKGBUILD"
             path.write_text("pkgname=demo")
-            with patch.object(scanner.sys, "argv", ["scanner", str(path)]):
+            with patch.object(scanner, "BACKEND", "ollama"), \
+                    patch.object(scanner.sys, "argv", ["scanner", str(path)]):
                 self.assertEqual(scanner.main(), 3)
 
     @patch.object(scanner.shutil, "which", return_value=None)
@@ -263,7 +265,8 @@ class ScannerTests(unittest.TestCase):
                 path = package / "PKGBUILD"
                 path.write_text(f"pkgname={name}")
                 paths.append(str(path))
-            with patch.object(scanner.sys, "argv", ["scanner", *paths]), patch("sys.stderr") as stderr:
+            with patch.object(scanner, "BACKEND", "ollama"), \
+                    patch.object(scanner.sys, "argv", ["scanner", *paths]), patch("sys.stderr") as stderr:
                 self.assertEqual(scanner.main(), 0)
             output = "".join(call.args[0] for call in stderr.write.call_args_list)
             self.assertIn("Review time for one: 1.25s (running total: 1.25s)", output)
@@ -336,9 +339,36 @@ class ScannerTests(unittest.TestCase):
         response.read.return_value = json.dumps(payload).encode()
         with tempfile.TemporaryDirectory() as directory:
             raw_path = Path(directory) / "raw.json"
-            result = scanner.analyze("pkgname=demo", raw_path)
+            with patch.object(scanner, "BACKEND", "ollama"), \
+                    patch.dict(scanner.CONFIG, {"base_url": "http://127.0.0.1:11434"}, clear=False):
+                result = scanner.analyze("pkgname=demo", raw_path)
             self.assertFalse(result["suspicious"])
             self.assertEqual(json.loads(raw_path.read_text()), payload)
+
+    @patch.object(scanner, "analyze")
+    @patch.object(scanner, "clamav_command", return_value=None)
+    @patch.object(scanner.shutil, "which", return_value=None)
+    def test_all_components_skipped_warns_and_does_not_analyze(self, _which, _clamav, analyze):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            with patch.object(scanner, "BACKEND", None), \
+                    patch.object(scanner.sys, "argv", ["scanner", str(path)]), \
+                    patch("sys.stderr") as stderr:
+                self.assertEqual(scanner.main(), 0)
+        output = "".join(call.args[0] for call in stderr.write.call_args_list)
+        self.assertIn("ClamAV is not integrated", output)
+        self.assertIn("ks-aur-scanner is not integrated", output)
+        self.assertIn("AI reviewer is not integrated", output)
+        self.assertIn("currently offering no security benefit", output)
+        analyze.assert_not_called()
+
+    def test_ai_backend_is_disabled_when_not_explicitly_configured(self):
+        with tempfile.TemporaryDirectory() as directory:
+            missing = str(Path(directory) / "missing.toml")
+            with patch.dict(scanner.os.environ, {"SAFEYAY_CONFIG": missing}, clear=True):
+                config = scanner.load_config()
+        self.assertIsNone(config["backend"])
 
     @patch.object(scanner, "http_json")
     def test_openai_responses_backend(self, http_json):
