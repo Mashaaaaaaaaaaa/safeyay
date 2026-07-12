@@ -79,6 +79,35 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(analyze.call_count, 1)
         self.assertNotIn("aur-scan", analyze.call_args.args[0])
 
+    @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
+    @patch.object(scanner.shutil, "which", return_value=None)
+    def test_ks_aur_scanner_absence_is_announced_not_silent(self, _which, _analyze):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]), \
+                    patch("sys.stderr") as stderr:
+                self.assertEqual(scanner.main(), 0)
+            output = "".join(call.args[0] for call in stderr.write.call_args_list)
+        self.assertIn("ks-aur-scanner (aur-scan) not found on PATH", output)
+        self.assertIn("ClamAV not found on PATH", output)
+
+    @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
+    @patch.object(scanner.subprocess, "run")
+    @patch.object(scanner.shutil, "which", side_effect=lambda name: "/usr/bin/aur-scan" if name == "aur-scan" else None)
+    def test_ks_aur_scanner_detection_is_announced(self, _which, run, _analyze):
+        run.return_value.returncode = 0
+        run.return_value.stdout = json.dumps({"package_name": "demo", "findings": []})
+        run.return_value.stderr = ""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]), \
+                    patch("sys.stderr") as stderr:
+                self.assertEqual(scanner.main(), 0)
+            output = "".join(call.args[0] for call in stderr.write.call_args_list)
+        self.assertIn("ks-aur-scanner detected (/usr/bin/aur-scan)", output)
+
     @patch.object(scanner, "confirm", return_value=False)
     @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
     @patch.object(scanner.subprocess, "run")
