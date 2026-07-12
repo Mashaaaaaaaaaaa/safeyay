@@ -76,10 +76,10 @@ cd safeyay
 makepkg -si
 ```
 
-The included [PKGBUILD](PKGBUILD) verifies every packaged source file with
-SHA-256 and installs the launcher under `/usr/bin` and the scanner under
-`/usr/lib/safeyay`. Review the PKGBUILD before building, as with any AUR-style
-package.
+The included [PKGBUILD](PKGBUILD) downloads the tagged GitHub release source
+tarball matching `pkgver`, verifies it with SHA-256, and installs the launcher
+under `/usr/bin` and the scanner under `/usr/lib/safeyay`. Review the PKGBUILD
+before building, as with any AUR-style package.
 
 ### Per-user installation
 

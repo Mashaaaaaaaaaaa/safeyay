@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 pkgname=safeyay
-pkgver=0.1.0
-pkgrel=4
+pkgver=0.2.0
+pkgrel=1
 pkgdesc='AI-assisted security review wrapper for AUR packages installed by yay'
 arch=('any')
 url='https://github.com/Mashaaaaaaaaaaa/safeyay'
@@ -15,25 +15,21 @@ optdepends=(
   'claude-code: use the Claude Code CLI reviewer backend'
   'ks-aur-scanner: independent first-pass AUR security scan'
 )
-source=('safeyay' 'safeyay_scanner.py' 'config.example.toml' 'LICENSE')
-sha256sums=(
-  '53b595a1611d92300e8c55302c1c3a4bdda2a222461547a1111c3d498d45c895'
-  '092fd2872a77b87127fff38e766c5756c699b6034f5894b142b2d7b468c8c87a'
-  'd9c3efb9cdc275636ff373f3bfa4dfc6980ea0c7fd96dd32d569af3bc9dec2be'
-  '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'
-)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
 
 package() {
-  install -Dm755 "$srcdir/safeyay_scanner.py" \
+  cd "$pkgname-$pkgver"
+
+  install -Dm755 safeyay_scanner.py \
     "$pkgdir/usr/lib/safeyay/safeyay_scanner.py"
 
   sed 's|scanner="$root/safeyay_scanner.py"|scanner="/usr/lib/safeyay/safeyay_scanner.py"|' \
-    "$srcdir/safeyay" > "$pkgdir/safeyay"
-  install -Dm755 "$pkgdir/safeyay" "$pkgdir/usr/bin/safeyay"
-  rm "$pkgdir/safeyay"
+    safeyay > "$srcdir/safeyay"
+  install -Dm755 "$srcdir/safeyay" "$pkgdir/usr/bin/safeyay"
 
-  install -Dm644 "$srcdir/config.example.toml" \
+  install -Dm644 config.example.toml \
     "$pkgdir/usr/share/doc/safeyay/config.example.toml"
-  install -Dm644 "$srcdir/LICENSE" \
+  install -Dm644 LICENSE \
     "$pkgdir/usr/share/licenses/safeyay/LICENSE"
 }

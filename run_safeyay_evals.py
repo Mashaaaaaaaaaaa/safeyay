@@ -25,6 +25,7 @@ def main() -> int:
     runs = []
     failures = 0
     selected = set(sys.argv[1:])
+    ks_aur_scanner = shutil.which("aur-scan")
     fixtures = sorted(
         fixture for fixture in FIXTURES.glob("*/PKGBUILD")
         if not (fixture.parent / ".disabled").exists()
@@ -47,6 +48,21 @@ def main() -> int:
         console = io.StringIO()
         expected = "unlabeled" if (fixture.parent / ".unlabeled").exists() else ("suspicious" if "tampered" in name else "clean")
         record = {"fixture": name, "model": scanner.MODEL, "expected": expected}
+        if ks_aur_scanner:
+            try:
+                with redirect_stdout(console), redirect_stderr(console):
+                    scan_report = scanner.run_ks_aur_scanner(ks_aur_scanner, inputs, name)
+                    scanner.print_scan_findings(scan_report, name)
+                (run_dir / "ks-aur-scanner-report.json").write_text(json.dumps(scan_report, indent=2) + "\n")
+                findings = scan_report.get("findings", [])
+                record["ks_aur_scanner"] = {
+                    "finding_count": len(findings),
+                    "critical_count": sum(1 for f in findings if f.get("severity") == "critical"),
+                }
+            except RuntimeError as exc:
+                (run_dir / "ks-aur-scanner-report.json").write_text(json.dumps({"error": str(exc)}, indent=2) + "\n")
+                record["ks_aur_scanner"] = {"error": str(exc)}
+                print(f"KS-AUR-SCANNER ERROR: {exc}", file=console)
         try:
             with redirect_stdout(console), redirect_stderr(console):
                 print(f"Reviewing {name} with {scanner.MODEL}")
@@ -67,6 +83,7 @@ def main() -> int:
         "backend": scanner.BACKEND,
         "model": scanner.MODEL,
         "base_url": scanner.CONFIG.get("base_url", ""),
+        "ks_aur_scanner_used": bool(ks_aur_scanner),
         "fixture_labels_exposed_to_model": False,
         "runs": runs,
     }
