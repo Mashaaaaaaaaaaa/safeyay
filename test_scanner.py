@@ -3,6 +3,7 @@ import tempfile
 import unittest
 import json
 from pathlib import Path
+import unittest.mock
 from unittest.mock import patch
 
 import safeyay_scanner as scanner
@@ -267,6 +268,44 @@ class ScannerTests(unittest.TestCase):
             output = "".join(call.args[0] for call in stderr.write.call_args_list)
             self.assertIn("Review time for one: 1.25s (running total: 1.25s)", output)
             self.assertIn("Review time for two: 2.50s (running total: 3.75s)", output)
+
+    def _tty_open(self, readline_value):
+        # Return a fake write handle and a fake read handle for the two
+        # separate open("/dev/tty", ...) calls confirm() makes, recording the
+        # prompt written to the write handle.
+        writes = []
+        write_handle = unittest.mock.MagicMock()
+        write_handle.__enter__.return_value = write_handle
+        write_handle.write.side_effect = writes.append
+        read_handle = unittest.mock.MagicMock()
+        read_handle.__enter__.return_value = read_handle
+        read_handle.readline.return_value = readline_value
+        return writes, [write_handle, read_handle]
+
+    def test_confirm_uses_separate_tty_handles_and_accepts_yes(self):
+        writes, handles = self._tty_open("y\n")
+        with patch.dict(scanner.os.environ, {}, clear=False):
+            scanner.os.environ.pop("SAFEYAY_NONINTERACTIVE", None)
+            with patch("builtins.open", side_effect=handles) as opened:
+                self.assertTrue(scanner.confirm())
+        self.assertEqual([call.args for call in opened.call_args_list], [("/dev/tty", "w"), ("/dev/tty", "r")])
+        self.assertIn("Continue with this suspicious package?", "".join(writes))
+
+    def test_confirm_defaults_to_reject_on_blank_answer(self):
+        _writes, handles = self._tty_open("\n")
+        with patch.dict(scanner.os.environ, {}, clear=False):
+            scanner.os.environ.pop("SAFEYAY_NONINTERACTIVE", None)
+            with patch("builtins.open", side_effect=handles):
+                self.assertFalse(scanner.confirm())
+
+    def test_confirm_reports_when_tty_cannot_be_opened(self):
+        with patch.dict(scanner.os.environ, {}, clear=False):
+            scanner.os.environ.pop("SAFEYAY_NONINTERACTIVE", None)
+            with patch("builtins.open", side_effect=OSError("No such device or address")), \
+                    patch("sys.stderr") as stderr:
+                self.assertFalse(scanner.confirm())
+            output = "".join(call.args[0] for call in stderr.write.call_args_list)
+        self.assertIn("Could not prompt for confirmation", output)
 
     @patch.object(scanner, "ollama_running", return_value=True)
     def test_reuses_existing_ollama(self, _running):

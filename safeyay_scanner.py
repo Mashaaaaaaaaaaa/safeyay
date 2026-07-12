@@ -622,12 +622,18 @@ Set suspicious=true if a human should stop and inspect before building."""
 def confirm() -> bool:
     if os.environ.get("SAFEYAY_NONINTERACTIVE") == "1":
         return False
+    # Open /dev/tty with separate read and write handles rather than one "r+"
+    # stream. Text-mode "r+" probes the stream for seekability while setting up
+    # buffering, which raises io.UnsupportedOperation on the non-seekable
+    # controlling terminal that yay hands the editor subprocess -- silently
+    # rejecting every flagged package without ever showing the prompt.
     try:
-        with open("/dev/tty", "r+") as tty:
-            tty.write("Continue with this suspicious package? [y/N] ")
-            tty.flush()
-            return tty.readline().strip().lower() in {"y", "yes"}
-    except OSError:
+        with open("/dev/tty", "w") as out, open("/dev/tty", "r") as inp:
+            out.write("Continue with this suspicious package? [y/N] ")
+            out.flush()
+            return inp.readline().strip().lower() in {"y", "yes"}
+    except OSError as exc:
+        print(f"[safeyay] Could not prompt for confirmation via /dev/tty ({exc}); defaulting to reject.", file=sys.stderr)
         return False
 
 
