@@ -1,0 +1,24 @@
+pkgname=joplin-desktop-source
+pkgver=2.4.1
+pkgrel=1
+pkgdesc='Open source note-taking application'
+arch=(x86_64)
+url=https://github.com/laurent22/joplin
+license=(MIT)
+depends=(electron)
+makedepends=(npm)
+source=("$pkgname-$pkgver.tar.gz::https://github.com/laurent22/joplin/archive/refs/tags/v$pkgver.tar.gz"
+        package.json package-lock.json build.js)
+sha256sums=('f97bd1cee4f95639c8277703f54a8b25b9333894c984d947f0f728f20015831b'
+            'e3c79fd41b395902c348f663e1250cb1fa7f2a5c33b5f8319eba449bfb31edff'
+            '90647b307ab88ac0c4efb78c25e5d868a895a229b2492087a5b2f12d5d54277a'
+            '33b510ae0273c345d10459dfdceae1aacbe6da251a095dbcb9b9175ef56c229a')
+
+build() {
+  npm ci --ignore-scripts
+  npm run build
+}
+
+package() {
+  install -Dm644 dist/app.asar "$pkgdir/usr/lib/joplin-desktop/app.asar"
+}

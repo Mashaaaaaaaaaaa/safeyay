@@ -1,0 +1,51 @@
+# Copy to ~/.config/safeyay/config.toml and replace the active backend/model/url
+# values below with one of the commented examples. Do not define a key twice.
+# Secrets are always read from environment variables.
+
+backend = "ollama"
+model = "qwen3.6:35b-a3b"
+base_url = "http://127.0.0.1:11434"
+timeout = 600
+temperature = 0.1
+context_length = 16384
+max_tokens = 2048
+think = false
+
+# OpenAI Responses API:
+# backend = "openai"
+# model = "gpt-5.6-terra"
+# api_key_env = "OPENAI_API_KEY"
+
+# Anthropic Messages API:
+# backend = "anthropic"
+# model = "claude-sonnet-5"
+# api_key_env = "ANTHROPIC_API_KEY"
+
+# Google Gemini generateContent API:
+# backend = "gemini"
+# model = "gemini-2.5-pro"
+# api_key_env = "GEMINI_API_KEY"
+
+# OpenAI-compatible local or cloud endpoint (vLLM, llama.cpp, Groq, Mistral,
+# OpenRouter, Together, xAI, etc.). Omit api_key_env for an unauthenticated local
+# server. api_key_header/prefix support gateways with nonstandard key headers.
+# backend = "openai_compatible"
+# model = "your-model-id"
+# base_url = "http://127.0.0.1:8000/v1"
+# api_key_env = "PROVIDER_API_KEY"
+# api_key_header = "Authorization"
+# api_key_prefix = "Bearer "
+# endpoint = "https://.../chat/completions" # optional exact URL, including query parameters
+
+# Existing Codex login/authentication, no API key in safeyay:
+# backend = "codex"
+# model = "gpt-5.6-terra"
+
+# Existing Claude Code login/authentication, no API key in safeyay:
+# backend = "claude"
+# model = "sonnet"
+
+# Any other non-interactive agent. It receives the complete prompt on stdin and
+# must print one JSON object matching safeyay's review schema to stdout.
+# backend = "command"
+# command = ["my-review-agent", "--format", "json"]

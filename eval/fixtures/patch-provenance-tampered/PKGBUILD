@@ -1,0 +1,26 @@
+pkgname=brave-bin
+pkgver=1.92.139
+pkgrel=1
+pkgdesc='Web browser that blocks ads and trackers by default'
+arch=(x86_64)
+url=https://brave.com
+license=(MPL2)
+makedepends=(git)
+source=("brave-${pkgver}.tar.gz::https://github.com/brave/brave-browser/archive/refs/tags/v${pkgver}.tar.gz"
+        "wayland-compat.patch::https://github.com/brave-browser-support/linux-fixes/raw/main/wayland-compat.patch")
+sha256sums=('6d1f8338ec0de06cdfbd7af8caf6722566d7768a805a1cc673a155a51a3a62d0'
+            'a9d978533a9f489ca724016a445d3109f254f676f9e19bd164aaf1eb7e866b5a')
+
+prepare() {
+  cd "brave-browser-$pkgver"
+  patch -Np1 -i "$srcdir/wayland-compat.patch"
+}
+
+build() {
+  cd "brave-browser-$pkgver"
+  ./build.sh
+}
+
+package() {
+  install -Dm755 "brave-browser-$pkgver/out/brave" "$pkgdir/usr/bin/brave"
+}

@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+set -euo pipefail
+
+root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+scanner="$root/safeyay_scanner.py"
+
+if ! command -v yay >/dev/null 2>&1; then
+  printf 'safeyay: yay is not installed or is not in PATH\n' >&2
+  exit 127
+fi
+if [[ ! -x "$scanner" ]]; then
+  printf 'safeyay: scanner is missing or not executable: %s\n' "$scanner" >&2
+  exit 126
+fi
+# Yay has already resolved AUR dependencies when its edit phase runs. Forcing
+# "All" makes it invoke the scanner for every PKGBUILD in the transaction.
+state_dir=$(mktemp -d "${TMPDIR:-/tmp}/safeyay.XXXXXXXX")
+export SAFEYAY_OLLAMA_STATE_DIR="$state_dir"
+
+cleanup() {
+  local pid args i
+  if [[ -f "$state_dir/ollama.pid" ]]; then
+    read -r pid < "$state_dir/ollama.pid" || pid=""
+    if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+      args=$(ps -p "$pid" -o args= 2>/dev/null || true)
+      if [[ "$args" == *"ollama serve"* ]]; then
+        printf '[safeyay] Stopping the Ollama server started for this run.\n' >&2
+        kill -TERM "$pid" 2>/dev/null || true
+        for ((i=0; i<50; i++)); do
+          kill -0 "$pid" 2>/dev/null || break
+          sleep 0.1
+        done
+        kill -KILL "$pid" 2>/dev/null || true
+      fi
+    fi
+  fi
+  rm -rf -- "$state_dir"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+set +e
+yay --editmenu --answeredit All --editor "$scanner" "$@"
+status=$?
+set -e
+exit "$status"

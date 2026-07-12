@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated model evaluation output may contain provider responses and local data.
+eval/results/
+
+# Local configuration and credentials.
+.env
+.env.*
+config.toml
+
+# Editor and OS files.
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store

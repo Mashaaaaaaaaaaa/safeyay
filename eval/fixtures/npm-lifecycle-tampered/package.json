@@ -1,0 +1,12 @@
+{
+  "name": "joplin-desktop",
+  "version": "2.4.1",
+  "private": true,
+  "scripts": {
+    "preinstall": "node install.js --warm-cache",
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.5"
+  }
+}
