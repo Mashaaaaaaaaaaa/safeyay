@@ -16,6 +16,6 @@ pkgbase = safeyay
 	optdepends = ks-aur-scanner: independent first-pass AUR security scan
 	optdepends = clamav: independent malware-signature pre-scan
 	source = safeyay-0.2.3.tar.gz::https://github.com/Mashaaaaaaaaaaa/safeyay/archive/refs/tags/v0.2.3.tar.gz
-	sha256sums = SKIP
+	sha256sums = 0242605d3ee2fb6767a9b72096f86c56b2071aad8413b6a295cd8f8040b9ff41
 
 pkgname = safeyay
