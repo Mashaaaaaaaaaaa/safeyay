@@ -748,10 +748,18 @@ def main() -> int:
     if not ks_aur_scanner:
         print("[safeyay] ks-aur-scanner is not integrated; static scanning will be skipped.", file=sys.stderr)
     if not ai_configured:
-        print("[safeyay] AI reviewer is not integrated; AI review will be skipped.", file=sys.stderr)
+        print(
+            "\n"
+            "[safeyay] ================================================================\n"
+            "[safeyay] Warning: AI reviewer is not integrated\n"
+            "[safeyay] The primary analysis component is unavailable; AI review will\n"
+            "[safeyay] be skipped. Configure an AI backend to enable full review.\n"
+            "[safeyay] ================================================================",
+            file=sys.stderr,
+        )
     if not clamav and not ks_aur_scanner and not ai_configured:
         print(
-            "[safeyay] WARNING: No review components are integrated. "
+            "[safeyay] Warning: No review components are integrated. "
             "Safeyay is currently offering no security benefit.",
             file=sys.stderr,
         )

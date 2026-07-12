@@ -90,10 +90,19 @@ cd safeyay
 makepkg -si
 ```
 
-The included [PKGBUILD](PKGBUILD) downloads the tagged GitHub release source
-tarball matching `pkgver`, verifies it with SHA-256, and installs the launcher
-under `/usr/bin` and the scanner under `/usr/lib/safeyay`. Review the PKGBUILD
-before building, as with any AUR-style package.
+Each GitHub release offers a standalone `PKGBUILD` and a small runtime archive
+in addition to GitHub's automatically generated source archives. Download the
+release's `PKGBUILD`, review it, and build it normally:
+
+```sh
+curl -LO https://github.com/Mashaaaaaaaaaaa/safeyay/releases/download/v0.2.4/PKGBUILD
+makepkg -si
+```
+
+The PKGBUILD downloads the matching `safeyay-<version>-runtime.tar.gz` release
+asset, verifies it with SHA-256, and installs the launcher under `/usr/bin` and
+the scanner under `/usr/lib/safeyay`. The runtime archive contains only the
+files needed to install and run safeyay.
 
 ### Per-user installation
 

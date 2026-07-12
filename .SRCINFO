@@ -1,6 +1,6 @@
 pkgbase = safeyay
 	pkgdesc = AI-assisted security review wrapper for AUR packages installed by yay
-	pkgver = 0.2.3
+	pkgver = 0.2.4
 	pkgrel = 1
 	url = https://github.com/Mashaaaaaaaaaaa/safeyay
 	arch = any
@@ -15,7 +15,7 @@ pkgbase = safeyay
 	optdepends = claude-code: use the Claude Code CLI reviewer backend
 	optdepends = ks-aur-scanner: independent first-pass AUR security scan
 	optdepends = clamav: independent malware-signature pre-scan
-	source = safeyay-0.2.3.tar.gz::https://github.com/Mashaaaaaaaaaaa/safeyay/archive/refs/tags/v0.2.3.tar.gz
-	sha256sums = 0242605d3ee2fb6767a9b72096f86c56b2071aad8413b6a295cd8f8040b9ff41
+	source = safeyay-0.2.4-runtime.tar.gz::https://github.com/Mashaaaaaaaaaaa/safeyay/releases/download/v0.2.4/safeyay-0.2.4-runtime.tar.gz
+	sha256sums = eeeebd9bc81cfdcf73d0815047cade2f19ba5395aad50682774f59bddd12e673
 
 pkgname = safeyay

@@ -359,7 +359,8 @@ class ScannerTests(unittest.TestCase):
         output = "".join(call.args[0] for call in stderr.write.call_args_list)
         self.assertIn("ClamAV is not integrated", output)
         self.assertIn("ks-aur-scanner is not integrated", output)
-        self.assertIn("AI reviewer is not integrated", output)
+        self.assertIn("Warning: AI reviewer is not integrated", output)
+        self.assertIn("primary analysis component is unavailable", output)
         self.assertIn("currently offering no security benefit", output)
         analyze.assert_not_called()
 
