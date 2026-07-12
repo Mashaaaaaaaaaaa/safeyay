@@ -631,24 +631,53 @@ def confirm() -> bool:
         return False
 
 
-def run_aurscan(executable: str, paths: list[Path], label: str) -> int:
-    """Run aurscan as an independent gate, inheriting the console but no model input."""
+def run_ks_aur_scanner(executable: str, paths: list[Path], label: str) -> dict:
+    """Run ks-aur-scanner as an independent gate and return its structured findings."""
     pkgbuild = next((path for path in paths if path.name == "PKGBUILD"), paths[0])
-    print(f"\n[safeyay] Running independent aurscan pre-scan for {label} ...", file=sys.stderr)
+    print(f"\n[safeyay] Running independent ks-aur-scanner pre-scan for {label} ...", file=sys.stderr)
     try:
-        completed = subprocess.run([executable, str(pkgbuild.parent)], check=False)
+        completed = subprocess.run(
+            [executable, "scan", "-f", "json", "-q", str(pkgbuild.parent)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
     except OSError as exc:
-        print(f"[safeyay] AURSCAN FAILED: {exc}", file=sys.stderr)
-        return 3
-    if completed.returncode != 0:
+        raise RuntimeError(f"ks-aur-scanner could not be started: {exc}") from exc
+    if completed.returncode not in (0, 1):
+        raise RuntimeError(
+            f"ks-aur-scanner exited with status {completed.returncode}: {completed.stderr.strip()}"
+        )
+    try:
+        return json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"ks-aur-scanner returned invalid output: {exc}") from exc
+
+
+def print_scan_findings(report: dict, label: str) -> None:
+    findings = report.get("findings", [])
+    if not findings:
+        print(f"[safeyay] ks-aur-scanner found no issues for {label}.", file=sys.stderr)
+        return
+    order = ("critical", "high", "medium", "low", "info")
+    counts = {severity: 0 for severity in order}
+    for finding in findings:
+        counts[finding.get("severity", "info")] = counts.get(finding.get("severity", "info"), 0) + 1
+    summary = ", ".join(f"{counts[s]} {s}" for s in order if counts.get(s))
+    print(f"[safeyay] ks-aur-scanner findings for {label}: {summary}", file=sys.stderr)
+    for finding in findings:
+        location = finding.get("location") or {}
+        where = location.get("file", "")
+        if location.get("line"):
+            where = f"{where}:{location['line']}"
         print(
-            f"[safeyay] aurscan stopped {label} with status {completed.returncode}; "
-            "the LLM review was not started.",
+            f"  - [{finding.get('severity', '?').upper()}] {finding.get('id', '?')} {finding.get('title', '')}",
             file=sys.stderr,
         )
-    else:
-        print(f"[safeyay] aurscan approved {label}; starting independent LLM review.", file=sys.stderr)
-    return completed.returncode
+        if where:
+            print(f"    Location: {where}", file=sys.stderr)
+        if finding.get("recommendation"):
+            print(f"    Recommendation: {finding['recommendation']}", file=sys.stderr)
 
 
 def main() -> int:
@@ -656,16 +685,33 @@ def main() -> int:
     if not groups:
         print("safeyay: yay did not provide a PKGBUILD; refusing to continue", file=sys.stderr)
         return 2
-    aurscan = shutil.which("aurscan")
+    ks_aur_scanner = shutil.which("aur-scan")
     ollama_ready = False
     running_total = 0.0
     for paths in groups:
         source = read_sources(paths)
         label = package_name(source)
-        if aurscan:
-            aurscan_status = run_aurscan(aurscan, paths, label)
-            if aurscan_status != 0:
-                return aurscan_status if aurscan_status > 0 else 3
+        scanner_clean = True
+        if ks_aur_scanner:
+            try:
+                scan_report = run_ks_aur_scanner(ks_aur_scanner, paths, label)
+            except RuntimeError as exc:
+                print(f"[safeyay] KS-AUR-SCANNER FAILED: {exc}", file=sys.stderr)
+                print("[safeyay] Refusing to continue (fail-closed).", file=sys.stderr)
+                return 2
+            findings = scan_report.get("findings", [])
+            scanner_clean = not findings
+            print_scan_findings(scan_report, label)
+            if any(finding.get("severity") == "critical" for finding in findings):
+                print(
+                    f"[safeyay] ks-aur-scanner reported critical findings for {label}; "
+                    "skipping the LLM review.",
+                    file=sys.stderr,
+                )
+                if not confirm():
+                    return 3
+                continue
+            print(f"[safeyay] ks-aur-scanner found no critical findings for {label}; continuing to the independent LLM review.", file=sys.stderr)
         if BACKEND == "ollama" and not ollama_ready:
             try:
                 ollama_state = ensure_ollama_running()
@@ -689,16 +735,19 @@ def main() -> int:
         elapsed = time.perf_counter() - started_at
         running_total += elapsed
         print(f"[safeyay] Review time for {label}: {elapsed:.2f}s (running total: {running_total:.2f}s)", file=sys.stderr)
-        if not result["suspicious"]:
+        llm_clean = not result["suspicious"]
+        if llm_clean:
             print(f"[safeyay] No suspicious signs reported: {result['summary']}", file=sys.stderr)
+        else:
+            print("\n[safeyay] WARNING: SUSPICIOUS SIGNS REPORTED", file=sys.stderr)
+            print(f"[safeyay] {result['summary']}", file=sys.stderr)
+            for finding in result["findings"]:
+                print(f"  - [{finding['severity'].upper()}] {finding['location']}", file=sys.stderr)
+                print(f"    Evidence: {finding['evidence']}", file=sys.stderr)
+                print(f"    Why: {finding['reason']}", file=sys.stderr)
+            print("[safeyay] This model review is advisory and can miss malware.", file=sys.stderr)
+        if scanner_clean and llm_clean:
             continue
-        print("\n[safeyay] WARNING: SUSPICIOUS SIGNS REPORTED", file=sys.stderr)
-        print(f"[safeyay] {result['summary']}", file=sys.stderr)
-        for finding in result["findings"]:
-            print(f"  - [{finding['severity'].upper()}] {finding['location']}", file=sys.stderr)
-            print(f"    Evidence: {finding['evidence']}", file=sys.stderr)
-            print(f"    Why: {finding['reason']}", file=sys.stderr)
-        print("[safeyay] This model review is advisory and can miss malware.", file=sys.stderr)
         if not confirm():
             return 3
     return 0

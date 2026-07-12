@@ -60,23 +60,69 @@ class ScannerTests(unittest.TestCase):
 
     @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
     @patch.object(scanner.subprocess, "run")
-    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aurscan")
-    def test_aurscan_runs_before_independent_llm_review(self, _which, run, analyze):
+    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aur-scan")
+    def test_ks_aur_scanner_runs_before_independent_llm_review(self, _which, run, analyze):
         run.return_value.returncode = 0
+        run.return_value.stdout = json.dumps({"package_name": "demo", "findings": []})
+        run.return_value.stderr = ""
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "PKGBUILD"
             path.write_text("pkgname=demo")
             with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]):
                 self.assertEqual(scanner.main(), 0)
-        run.assert_called_once_with(["/usr/bin/aurscan", directory], check=False)
+        run.assert_called_once_with(
+            ["/usr/bin/aur-scan", "scan", "-f", "json", "-q", directory],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
         self.assertEqual(analyze.call_count, 1)
-        self.assertNotIn("aurscan", analyze.call_args.args[0])
+        self.assertNotIn("aur-scan", analyze.call_args.args[0])
+
+    @patch.object(scanner, "confirm", return_value=False)
+    @patch.object(scanner, "analyze")
+    @patch.object(scanner.subprocess, "run")
+    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aur-scan")
+    def test_ks_aur_scanner_critical_finding_skips_llm_review(self, _which, run, analyze, _confirm):
+        run.return_value.returncode = 0
+        run.return_value.stdout = json.dumps({
+            "package_name": "demo",
+            "findings": [{"id": "PRIV-002", "severity": "critical", "title": "SUID bit", "location": {}}],
+        })
+        run.return_value.stderr = ""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]):
+                self.assertEqual(scanner.main(), 3)
+        analyze.assert_not_called()
+
+    @patch.object(scanner, "confirm", return_value=False)
+    @patch.object(scanner, "analyze", return_value={"suspicious": False, "summary": "normal", "findings": []})
+    @patch.object(scanner.subprocess, "run")
+    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aur-scan")
+    def test_ks_aur_scanner_non_critical_finding_still_runs_llm_and_prompts(self, _which, run, analyze, confirm):
+        run.return_value.returncode = 0
+        run.return_value.stdout = json.dumps({
+            "package_name": "demo",
+            "findings": [{"id": "HIDDEN-001", "severity": "high", "title": "Hidden file", "location": {}}],
+        })
+        run.return_value.stderr = ""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "PKGBUILD"
+            path.write_text("pkgname=demo")
+            with patch.object(scanner, "BACKEND", "codex"), patch.object(scanner.sys, "argv", ["scanner", str(path)]):
+                self.assertEqual(scanner.main(), 3)
+        analyze.assert_called_once()
+        confirm.assert_called_once()
 
     @patch.object(scanner, "analyze")
     @patch.object(scanner.subprocess, "run")
-    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aurscan")
-    def test_aurscan_rejection_prevents_llm_review(self, _which, run, analyze):
+    @patch.object(scanner.shutil, "which", return_value="/usr/bin/aur-scan")
+    def test_ks_aur_scanner_failure_prevents_llm_review(self, _which, run, analyze):
         run.return_value.returncode = 2
+        run.return_value.stdout = ""
+        run.return_value.stderr = "boom"
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "PKGBUILD"
             path.write_text("pkgname=demo")
