@@ -1,6 +1,6 @@
 pkgbase = safeyay
 	pkgdesc = AI-assisted security review wrapper for AUR packages installed by yay
-	pkgver = 0.2.4
+	pkgver = 0.2.5
 	pkgrel = 1
 	url = https://github.com/Mashaaaaaaaaaaa/safeyay
 	arch = any
@@ -11,11 +11,11 @@ pkgbase = safeyay
 	depends = python>=3.11
 	depends = yay
 	optdepends = ollama: use locally hosted Ollama models
-	optdepends = openai-codex-bin: use the Codex CLI reviewer backend
+	optdepends = openai-codex: use the Codex CLI reviewer backend
 	optdepends = claude-code: use the Claude Code CLI reviewer backend
 	optdepends = ks-aur-scanner: independent first-pass AUR security scan
 	optdepends = clamav: independent malware-signature pre-scan
-	source = safeyay-0.2.4-runtime.tar.gz::https://github.com/Mashaaaaaaaaaaa/safeyay/releases/download/v0.2.4/safeyay-0.2.4-runtime.tar.gz
-	sha256sums = eeeebd9bc81cfdcf73d0815047cade2f19ba5395aad50682774f59bddd12e673
+	source = safeyay-0.2.5-runtime.tar.gz::https://github.com/Mashaaaaaaaaaaa/safeyay/releases/download/v0.2.5/safeyay-0.2.5-runtime.tar.gz
+	sha256sums = bf1cf38058362e6899fb070255923cbc8fcd4a5cf7580b196de8435b687fac8c
 
 pkgname = safeyay

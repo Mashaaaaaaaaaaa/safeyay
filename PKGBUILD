@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 pkgname=safeyay
-pkgver=0.2.4
+pkgver=0.2.5
 pkgrel=1
 pkgdesc='AI-assisted security review wrapper for AUR packages installed by yay'
 arch=('any')
@@ -11,13 +11,13 @@ license=('GPL-3.0-or-later')
 depends=('bash' 'coreutils' 'procps-ng' 'python>=3.11' 'yay')
 optdepends=(
   'ollama: use locally hosted Ollama models'
-  'openai-codex-bin: use the Codex CLI reviewer backend'
+  'openai-codex: use the Codex CLI reviewer backend'
   'claude-code: use the Claude Code CLI reviewer backend'
   'ks-aur-scanner: independent first-pass AUR security scan'
   'clamav: independent malware-signature pre-scan'
 )
 source=("$pkgname-$pkgver-runtime.tar.gz::$url/releases/download/v$pkgver/$pkgname-$pkgver-runtime.tar.gz")
-sha256sums=('eeeebd9bc81cfdcf73d0815047cade2f19ba5395aad50682774f59bddd12e673')
+sha256sums=('bf1cf38058362e6899fb070255923cbc8fcd4a5cf7580b196de8435b687fac8c')
 
 package() {
   cd "$pkgname-$pkgver"
