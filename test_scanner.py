@@ -4,9 +4,11 @@ import unittest
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
 import unittest.mock
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib/safeyay"))
 import safeyay_scanner as scanner
 
 

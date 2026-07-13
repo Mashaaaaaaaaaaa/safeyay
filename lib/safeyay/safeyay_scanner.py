@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Non-editing yay editor which asks a local Ollama model to review PKGBUILDs."""
+"""Non-editing yay editor which asks a configured model to review PKGBUILDs."""
 
 from __future__ import annotations
 

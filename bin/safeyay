@@ -3,7 +3,7 @@
 set -euo pipefail
 
 root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-scanner="$root/safeyay_scanner.py"
+scanner="$root/../lib/safeyay/safeyay_scanner.py"
 
 if ! command -v yay >/dev/null 2>&1; then
   printf 'safeyay: yay is not installed or is not in PATH\n' >&2

@@ -99,7 +99,7 @@ in addition to GitHub's automatically generated source archives. Download the
 release's `PKGBUILD`, review it, and build it normally:
 
 ```sh
-curl -LO https://github.com/Mashaaaaaaaaaaa/safeyay/releases/download/v0.2.5/PKGBUILD
+curl -LO https://github.com/Mashaaaaaaaaaaa/safeyay/releases/download/v0.2.6/PKGBUILD
 makepkg -si
 ```
 

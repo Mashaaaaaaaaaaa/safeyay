@@ -12,9 +12,10 @@ from pathlib import Path
 import shutil
 import sys
 
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT / "lib/safeyay"))
 import safeyay_scanner as scanner
 
-ROOT = Path(__file__).resolve().parent
 FIXTURES = ROOT / "eval" / "fixtures"
 RESULTS = ROOT / "eval" / "results"
 SEVERITIES = ("critical", "high", "medium", "low", "info")
